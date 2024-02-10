@@ -1,4 +1,5 @@
 use once_cell::sync::Lazy;
+use reqwest::Url;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use wiremock::MockServer;
@@ -25,7 +26,33 @@ pub struct TestApp {
     pub email_server: MockServer,
 }
 
+pub struct ConfirmationLinks {
+    pub html: reqwest::Url,
+    pub plain_text: reqwest::Url,
+}
+
 impl TestApp {
+    pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
+        let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+
+        let get_link = |s: &str| {
+            let links: Vec<_> = linkify::LinkFinder::new()
+                .links(s)
+                .filter(|l| *l.kind() == linkify::LinkKind::Url)
+                .collect();
+            assert_eq!(links.len(), 1);
+            let raw_confirmation_link = links[0].as_str().to_owned();
+            let mut confirmation_link = Url::parse(&raw_confirmation_link).unwrap();
+            assert_eq!(confirmation_link.host_str().unwrap(), "127.0.0.1");
+            confirmation_link.set_port(Some(self.port)).unwrap();
+            confirmation_link
+        };
+
+        let html = get_link(&body["HtmlBody"].as_str().unwrap());
+        let plain_text = get_link(&body["TextBody"].as_str().unwrap());
+        ConfirmationLinks { html, plain_text }
+    }
+
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
         reqwest::Client::new()
             .post(&format!("{}/subscriptions", &self.address))
