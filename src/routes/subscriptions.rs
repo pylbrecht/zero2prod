@@ -5,6 +5,8 @@ use actix_web::{web, HttpResponse};
 use chrono::Utc;
 use sqlx::PgPool;
 use uuid::Uuid;
+use rand::{thread_rng, Rng};
+use rand::distributions::Alphanumeric;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -114,4 +116,12 @@ pub async fn insert_subscriber(
         e
     })?;
     Ok(())
+}
+
+fn generate_subscription_token() -> String {
+    let mut rng = thread_rng();
+    std::iter::repeat_with(|| rng.sample(Alphanumeric))
+        .map(char::from)
+        .take(25)
+        .collect()
 }
