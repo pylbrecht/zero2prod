@@ -8,6 +8,7 @@ use anyhow::Context;
 use base64::Engine;
 use reqwest::header::{self, HeaderValue};
 use secrecy::{ExposeSecret, Secret};
+use sha3::Digest;
 use sqlx::PgPool;
 
 #[derive(thiserror::Error)]
@@ -87,14 +88,16 @@ async fn validate_credentials(
     credentials: Credentials,
     pool: &PgPool,
 ) -> Result<uuid::Uuid, PublishError> {
+    let password_hash = sha3::Sha3_256::digest(credentials.password.expose_secret().as_bytes());
+    let password_hash = format!("{:x}", password_hash);
     let user_id: Option<_> = sqlx::query!(
         r#"
         SELECT user_id
         FROM users
-        WHERE username = $1 AND password = $2
+        WHERE username = $1 AND password_hash = $2
         "#,
         credentials.username,
-        credentials.password.expose_secret(),
+        password_hash,
     )
     .fetch_optional(pool)
     .await
@@ -119,10 +122,7 @@ pub async fn publish_newsletter(
     request: HttpRequest,
 ) -> Result<HttpResponse, PublishError> {
     let credentials = basic_authentication(request.headers()).map_err(PublishError::AuthError)?;
-    tracing::Span::current().record(
-        "username",
-        &tracing::field::display(&credentials.username)
-    );
+    tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
     let user_id = validate_credentials(credentials, &pool).await?;
     tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
     let subscribers = get_confirmed_subscribers(&pool).await?;
