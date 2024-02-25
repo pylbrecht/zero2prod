@@ -1,6 +1,7 @@
 //! src/routes/mod.rs
 mod health_check;
 mod home;
+mod login;
 mod newsletters;
 mod subscriptions;
 mod subscriptions_confirm;
@@ -10,3 +11,4 @@ pub use home::*;
 pub use newsletters::*;
 pub use subscriptions::*;
 pub use subscriptions_confirm::*;
+pub use login::*;
