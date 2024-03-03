@@ -115,6 +115,19 @@ impl TestApp {
             .await
             .expect("Failed to execute request.")
     }
+
+    pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+        reqwest::Client::new()
+            .post(&format!("{}/login", &self.address))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
 }
 
 pub async fn spawn_app() -> TestApp {
