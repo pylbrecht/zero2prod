@@ -120,7 +120,10 @@ impl TestApp {
     where
         Body: serde::Serialize,
     {
-        reqwest::Client::new()
+        reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .unwrap()
             .post(&format!("{}/login", &self.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .form(body)
